@@ -16,19 +16,16 @@ class Application extends BaseApplication
         $app = $this;
         $app['config'] = $values['config'];
 
-        $app['rota_manager'] = function () use ($app) {
-            return new RotaManager($app['storage']);
-        };
-
-        $app['storage'] = function () use ($values) {
-            return new Storage($values['storage_file']);
-        };
+        $app->register(new PersistedThingsProvider);
+        $app->register(new CommandProvider);
 
         $app['slack'] = function () use ($app) {
             return new Slack($app['config'], $app['debug']);
         };
 
-        $app->register(new CommandProvider);
+        $app['date_validator'] = function () use ($app) {
+            return new DateValidator($app['cancelled_dates']);
+        };
 
         $app->post('/', function (Request $request) use ($app) {
 

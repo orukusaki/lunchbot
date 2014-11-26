@@ -3,57 +3,53 @@ namespace RgpJones\Lunchbot;
 
 class Shopper
 {
-    private $currentShopper;
-    private $shoppers = [];
+    private $name;
 
-    public function __construct(array $shoppers)
+    /**
+     * @var ShopperCollection
+     */
+    private $collection;
+
+    public function __construct($name)
     {
-        $this->shoppers = $shoppers;
+        $this->name = $name;
     }
 
-    public function setCurrentShopper($shopper)
-    {
-        if (!in_array($shopper, $this->shoppers)) {
-            throw new \InvalidArgumentException('Current Shopper must be in shoppers list');
-        }
-        $this->currentShopper = $shopper;
+    /**
+     * @param ShopperCollection $colletion
+     */
+    public function setCollection(ShopperCollection $collection) {
+        $this->collection = $collection;
     }
 
-    public function addShopper($name)
+    /**
+     * @return mixed
+     */
+    public function getName()
     {
-        if (in_array($name, $this->shoppers)) {
-            throw new \InvalidArgumentException("'{$name}' is already subscribed to Lunch Club");
-        }
-        $this->shoppers[] = $name;
-    }
-
-    public function getShoppers()
-    {
-        return $this->shoppers;
+        return $this->name;
     }
 
     public function next()
     {
-        $nextOffset = 0;
-        if (!is_null($this->currentShopper)) {
-            $nextOffset = array_search($this->currentShopper, $this->shoppers) + 1;
-            if ($nextOffset >= count($this->shoppers)) {
-                $nextOffset = 0;
-            }
+        if (!$this->collection) {
+            throw new \InvalidArgumentException('I am not part of a collection');
         }
-        $this->currentShopper = $this->shoppers[$nextOffset];
 
-        return $this->currentShopper;
+        return $this->collection->next($this);
     }
 
     public function prev()
     {
-        $prevOffset = array_search($this->currentShopper, $this->shoppers) - 1;
-        if ($prevOffset < 0) {
-            $prevOffset = count($this->shoppers) - 1;
+        if (!$this->collection) {
+            throw new \InvalidArgumentException('I am not part of a collection');
         }
-        $this->currentShopper = $this->shoppers[$prevOffset];
 
-        return $this->currentShopper;
+        return $this->collection->prev($this);
+    }
+
+    public function __toString()
+    {
+        return $this->getName() ?: '';
     }
 }

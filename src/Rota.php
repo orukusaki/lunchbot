@@ -3,10 +3,16 @@ namespace RgpJones\Lunchbot;
 
 use DateInterval;
 use DateTime;
+use Doctrine\Instantiator\Exception\InvalidArgumentException;
+use JsonSerializable;
 
-class Rota
+/**
+ * Represents the next 7 working days of rota'd shopping
+ * @package RgpJones\Lunchbot
+ */
+class Rota implements JsonSerializable
 {
-    private $shopper;
+    private $shoppers;
 
     private $interval;
 
@@ -14,30 +20,37 @@ class Rota
 
     private $dateValidator;
 
-    public function __construct(Shopper $shopper, DateValidator $dateValidator, array $currentRota = array())
+    const DAYS = 7;
+
+    public function __construct(ShopperCollection $shoppers, DateValidator $dateValidator, array $currentRota = [])
     {
-        $this->shopper = $shopper;
+        $this->shoppers = $shoppers;
         $this->interval = new DateInterval('P1D');
         $this->dateValidator = $dateValidator;
-        $this->currentRota = $currentRota;
+
+        foreach ($currentRota as $date => $name) {
+            $this->currentRota[] = $shoppers->get($name);
+        }
+
+        $this->generate();
     }
 
-    public function generate(DateTime $date, $days)
+    private function generate()
     {
-        // Sets current shopper to the shopper for the previous time lunchclub ran
-        $previousDate = $this->getPreviousRotaDate($date);
-        if (!is_null($previousDate)) {
-            $this->shopper->setCurrentShopper($this->currentRota[$previousDate->format('Y-m-d')]);
-        }
+        $daysToGenerate = self::DAYS - count($this->currentRota);
+        $date = new \DateTimeImmutable(end(array_keys($this->currentRota)));
+        $shopper = $this->currentRota[$this->getDateKey($date)];
 
-        $rota[$this->getDateKey($date)] = $this->getNextShopper($date);
-        while (count($rota) < $days) {
-            $date = $date->add($this->interval);
-            $rota[$this->getDateKey($date)] = $this->getNextShopper($date);
-        }
-        $this->currentRota = array_merge($this->currentRota, $rota);
+        while ($daysToGenerate--) {
 
-        return $rota;
+            do {
+                $date = $date->modify('next working day');
+            } while ($this->dateIsCancelled($date));
+
+            $shopper = $shopper->next();
+
+            $this->currentRota[$this->getDateKey($date)] = $shopper->getName();
+        }
     }
 
     public function getCurrentRota()
@@ -47,8 +60,10 @@ class Rota
 
     public function getShopperForDate(DateTime $date)
     {
+        $this->generate();
+
         if (!isset($this->currentRota[$this->getDateKey($date)])) {
-            $this->generate($date, 1);
+            throw new InvalidArgumentException('Shopper for that date us unknown');
         }
 
         return $this->currentRota[$this->getDateKey($date)];
@@ -56,10 +71,16 @@ class Rota
 
     public function skipShopperForDate(DateTime $date)
     {
-        while (isset($this->currentRota[$this->getDateKey($date)])) {
-            $currentDate = clone $date;
-            $this->currentRota[$this->getDateKey($currentDate)] = $this->getNextShopper($date->add($this->interval));
+        $skipDate = $this->getDateKey($date);
+
+        reset($this->currentRota);
+
+        while (key($this->currentRota) != $skipDate) {
+            next($this->currentRota);
         }
+        do {
+            $this->currentRota[key($this->currentRota)] = current($this->currentRota)->next();
+        } while (next($this->currentRota) !== false);
     }
 
     public function cancelOnDate(DateTime $cancelDate)
@@ -139,5 +160,10 @@ class Rota
     public function swapShopper($argument1, $argument2)
     {
         // TODO: write logic here
+    }
+
+    function jsonSerialize()
+    {
+        return $this->currentRota;
     }
 }

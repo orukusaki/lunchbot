@@ -2,25 +2,25 @@
 namespace RgpJones\Lunchbot\Command;
 
 use RgpJones\Lunchbot\Command;
-use RgpJones\Lunchbot\RotaManager;
 use DateTime;
 use RgpJones\Lunchbot\Slack;
+use RgpJones\Lunchbot\Rota as RotaService;
 
 class Cancel implements Command
 {
     /**
-     * @var RotaManager
+     * @var RotaService
      */
-    protected $rotaManager;
+    protected $rota;
 
     /**
      * @var Slack
      */
     private $slack;
 
-    public function __construct(RotaManager $rotaManager, Slack $slack)
+    public function __construct(RotaService $rota, Slack $slack)
     {
-        $this->rotaManager = $rotaManager;
+        $this->rota = $rota;
         $this->slack = $slack;
     }
 
@@ -35,7 +35,7 @@ class Cancel implements Command
             ? new DateTime($args[1])
             : new DateTime();
 
-        if ($this->rotaManager->cancelOnDate($date)) {
+        if ($this->rota->cancelOnDate($date)) {
             $message = 'Lunchclub has been cancelled on ';
         } else {
             $message = "Couldn't cancel Lunchclub on ";
